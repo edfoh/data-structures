@@ -7,14 +7,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNew(t *testing.T) {
+func TestNewSingleLinkList(t *testing.T) {
 	sll := datastruct.NewSingleLinkedList[int, string]()
 
 	assert.Empty(t, sll.AllKeys())
 	assert.Empty(t, sll.AllItems())
 }
 
-func TestInsertHead(t *testing.T) {
+func TestSingleLinkedList_InsertHead(t *testing.T) {
 	sll := datastruct.NewSingleLinkedList[int, string]()
 
 	t.Run("insert head works", func(t *testing.T) {
@@ -30,9 +30,16 @@ func TestInsertHead(t *testing.T) {
 		assert.Equal(t, []int{2, 1}, sll.AllKeys())
 		assert.Equal(t, []string{"2", "1"}, sll.AllItems())
 	})
+
+	t.Run("insert head 3rd time works", func(t *testing.T) {
+		sll.InsertHead(3, "3")
+
+		assert.Equal(t, []int{3, 2, 1}, sll.AllKeys())
+		assert.Equal(t, []string{"3", "2", "1"}, sll.AllItems())
+	})
 }
 
-func TestInsertAfter(t *testing.T) {
+func TestSingleLinkedList_InsertAfter(t *testing.T) {
 	sll := datastruct.NewSingleLinkedList[int, string]()
 	sll.InsertHead(1, "1")
 	sll.InsertHead(2, "2")
@@ -63,7 +70,7 @@ func TestInsertAfter(t *testing.T) {
 	})
 }
 
-func TestDelete(t *testing.T) {
+func TestSingleLinkedList_Delete(t *testing.T) {
 	sll := datastruct.NewSingleLinkedList[int, string]()
 	sll.InsertHead(1, "1")
 	sll.InsertHead(2, "2")
@@ -86,7 +93,7 @@ func TestDelete(t *testing.T) {
 	})
 }
 
-func TestSearch(t *testing.T) {
+func TestSingleLinkedList_Search(t *testing.T) {
 	sll := datastruct.NewSingleLinkedList[int, string]()
 	sll.InsertHead(1, "1")
 	sll.InsertHead(2, "2")
