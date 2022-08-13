@@ -113,6 +113,7 @@ func (tree *BinarySearchTree[K]) search(node *TreeNode[K], data K) *TreeNode[K] 
 
 func (tree *BinarySearchTree[K]) Delete(data K) {
 	tree.delete(tree.root, data)
+	tree.currNodes--
 }
 
 // delete will recursively walk the tree to find the matching node. If the matching node is a leaf (no children),
