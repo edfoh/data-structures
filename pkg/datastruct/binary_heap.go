@@ -67,6 +67,9 @@ func (h *Heap[K, P]) Size() int {
 	return len(h.nodes)
 }
 
+// Insert will add a new item at the end, and a comparison is made with the newly added node against its
+// parent depending on HeapOrder of Min or Max. If the node is smaller or larger than the parent, their values are swapped.
+// The comparison is done continuously up the heap against each parent until the comparison no longer holds true.
 func (h *Heap[K, P]) Insert(data K) error {
 	if len(h.nodes) == h.capacity {
 		return errors.New("Heap is full")
@@ -113,21 +116,24 @@ func (h *Heap[K, P]) Print() string {
 	return strings.Join(ss, ",")
 }
 
+// heapify will recursively heapify a subtree at the given index. Depending of the HeapOrder,
+// Min will compare and swap values with left or right that has the smallest value with the node at the given index,
+// and recursively working up the heap. For HeapOrder Max, the comparison works to move the larger value up.
 func (h *Heap[K, P]) heapify(index int) {
 	left := h.left(index)
 	right := h.right(index)
 
-	smallest := index
-	if left < h.Size() && h.compare(left, smallest) {
-		smallest = left
+	compared := index
+	if left < h.Size() && h.compare(left, compared) {
+		compared = left
 	}
 
-	if right < h.Size() && h.compare(right, smallest) {
-		smallest = right
+	if right < h.Size() && h.compare(right, compared) {
+		compared = right
 	}
 
-	if smallest != index {
-		h.swap(index, smallest)
-		h.heapify(smallest)
+	if compared != index {
+		h.swap(index, compared)
+		h.heapify(compared)
 	}
 }
