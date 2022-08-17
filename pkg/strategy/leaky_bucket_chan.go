@@ -1,4 +1,4 @@
-package datastruct
+package strategy
 
 import (
 	"errors"
@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-type LeakyBucket[T any] struct {
+type LeakyBucketChan[T any] struct {
 	sync.RWMutex
 	in           chan T
 	out          chan<- T
@@ -15,8 +15,8 @@ type LeakyBucket[T any] struct {
 	running      bool
 }
 
-func NewLeakyBucket[T any](out chan<- T, cap int, ratePerSecond int) *LeakyBucket[T] {
-	return &LeakyBucket[T]{
+func NewLeakyBucketChan[T any](out chan<- T, cap int, ratePerSecond int) *LeakyBucketChan[T] {
+	return &LeakyBucketChan[T]{
 		in:           make(chan T, cap),
 		out:          out,
 		interval:     time.Second / time.Duration(ratePerSecond),
@@ -24,7 +24,7 @@ func NewLeakyBucket[T any](out chan<- T, cap int, ratePerSecond int) *LeakyBucke
 	}
 }
 
-func (b *LeakyBucket[T]) Enqueue(task T) error {
+func (b *LeakyBucketChan[T]) Enqueue(task T) error {
 	select {
 	case b.in <- task:
 		return nil
@@ -33,7 +33,7 @@ func (b *LeakyBucket[T]) Enqueue(task T) error {
 	}
 }
 
-func (b *LeakyBucket[T]) Start() {
+func (b *LeakyBucketChan[T]) Start() {
 	b.Lock()
 	defer b.Unlock()
 
@@ -52,14 +52,14 @@ func (b *LeakyBucket[T]) Start() {
 	}()
 }
 
-func (b *LeakyBucket[T]) Stop() {
+func (b *LeakyBucketChan[T]) Stop() {
 	b.Lock()
 	defer b.Unlock()
 
 	b.running = false
 }
 
-func (b *LeakyBucket[T]) isRunning() bool {
+func (b *LeakyBucketChan[T]) isRunning() bool {
 	b.RLock()
 	defer b.RUnlock()
 
