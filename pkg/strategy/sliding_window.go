@@ -7,8 +7,6 @@ import (
 	"time"
 )
 
-var now = time.Now
-
 type window struct {
 	startTime time.Time
 	count     int
