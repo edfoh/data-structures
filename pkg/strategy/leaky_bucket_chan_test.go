@@ -1,4 +1,4 @@
-package datastruct
+package strategy
 
 import (
 	"errors"
@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestLeakyBucket(t *testing.T) {
+func TestLeakyBucketChan(t *testing.T) {
 	testCases := []struct {
 		desc                      string
 		capacity                  int
@@ -54,7 +54,7 @@ func TestLeakyBucket(t *testing.T) {
 	for _, tC := range testCases {
 		t.Run(tC.desc, func(t *testing.T) {
 			out := make(chan int)
-			bucket := NewLeakyBucket(out, tC.capacity, tC.ratePerSecond)
+			bucket := NewLeakyBucketChan(out, tC.capacity, tC.ratePerSecond)
 
 			bucket.Start()
 
