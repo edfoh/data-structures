@@ -3,6 +3,7 @@ package strategy
 import (
 	"context"
 	"errors"
+	"math"
 	"sync"
 	"time"
 )
@@ -12,17 +13,9 @@ type window struct {
 	count     int
 }
 
-func newWindowBefore(interval time.Duration) *window {
-	prevTime := now().Add(-interval)
+func newWindow(t time.Time) *window {
 	return &window{
-		startTime: prevTime,
-		count:     0,
-	}
-}
-
-func newNowWindow() *window {
-	return &window{
-		startTime: now(),
+		startTime: t,
 		count:     0,
 	}
 }
@@ -33,6 +26,23 @@ func (w *window) AddN(n int) {
 
 func (w *window) Count() int {
 	return w.count
+}
+
+func (w *window) StartTime() time.Time {
+	return w.startTime
+}
+
+func (w *window) Set(t time.Time, c int) {
+	w.SetTime(t)
+	w.SetCount(c)
+}
+
+func (w *window) SetTime(t time.Time) {
+	w.startTime = t
+}
+
+func (w *window) SetCount(c int) {
+	w.count = c
 }
 
 func (w *window) Reset() {
@@ -59,10 +69,11 @@ type SlidingWindow struct {
 func NewSlidingWindow(interval time.Duration, capacity int) *SlidingWindow {
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
-
+	currTime := now()
+	prevTime := currTime.Add(-interval)
 	sl := &SlidingWindow{
-		prev:       newWindowBefore(interval),
-		curr:       newNowWindow(),
+		prev:       newWindow(prevTime),
+		curr:       newWindow(currTime),
 		interval:   interval,
 		capacity:   capacity,
 		ctx:        ctx,
@@ -84,11 +95,11 @@ func (w *SlidingWindow) AddN(n int) (bool, error) {
 	defer w.Unlock()
 
 	tNow := now()
-	currTimeSlide := tNow.Sub(w.curr.startTime)
+	currTimeSlide := tNow.Sub(w.curr.StartTime())
 	prevTimeSlide := w.interval - currTimeSlide
 
-	prevSlideCount := float64(w.interval-prevTimeSlide) / float64(w.interval) * float64(w.prev.Count())
-	currSlideCount := float64(w.interval-currTimeSlide) / float64(w.interval) * float64(w.curr.Count())
+	prevSlideCount := float64(prevTimeSlide) / float64(w.interval) * float64(w.prev.Count())
+	currSlideCount := float64(currTimeSlide) / float64(w.interval) * float64(w.curr.Count())
 
 	windowCount := prevSlideCount + currSlideCount
 
@@ -113,13 +124,12 @@ func (w *SlidingWindow) Stop() {
 }
 
 func (w *SlidingWindow) processProgressive() {
-
 	for {
 		select {
 		case <-w.ctx.Done():
 			return
 		default:
-			waitDuration := w.interval - now().Sub(w.curr.startTime)
+			waitDuration := w.interval - now().Sub(w.curr.StartTime())
 			time.Sleep(waitDuration)
 			w.Lock()
 			// copy curr to prev and start new curr
@@ -128,5 +138,70 @@ func (w *SlidingWindow) processProgressive() {
 			w.Unlock()
 		}
 
+	}
+}
+
+type SyncSlidingWindow struct {
+	prev     *window
+	curr     *window
+	interval time.Duration
+	capacity int
+}
+
+func NewSyncSlidingWindow(interval time.Duration, capacity int) *SyncSlidingWindow {
+	currTime := now()
+	prevTime := currTime.Add(-interval)
+	return &SyncSlidingWindow{
+		prev:     newWindow(prevTime),
+		curr:     newWindow(currTime),
+		capacity: capacity,
+		interval: interval,
+	}
+}
+
+func (w *SyncSlidingWindow) getNSlides(t time.Time) (bool, int) {
+	diff := t.Sub(w.curr.startTime)
+	isInCurrentWindow := diff < w.interval
+	nSlides := float64(diff) / float64(w.interval)
+
+	return isInCurrentWindow, int(nSlides)
+}
+
+func (w *SyncSlidingWindow) Count() (int, int) {
+	return w.prev.Count(), w.curr.Count()
+}
+
+func (w *SyncSlidingWindow) AddN(n int) (bool, error) {
+	tNow := now()
+
+	w.adjustWindows(tNow)
+
+	currTimePortion := tNow.Sub(w.curr.StartTime())
+	prevTimePortion := w.interval - currTimePortion
+
+	currTimeCount := float64(currTimePortion) / float64(w.interval) * float64(w.curr.Count())
+	prevTimeCount := float64(prevTimePortion) / float64(w.interval) * float64(w.prev.Count())
+	totalCount := currTimeCount + prevTimeCount
+
+	if int(math.Round(totalCount))+n > w.capacity {
+		return false, errors.New("sliding window is full")
+	}
+
+	w.curr.AddN(n)
+	return true, nil
+}
+
+func (w *SyncSlidingWindow) adjustWindows(t time.Time) {
+	if isInCurrentWindow, nSlides := w.getNSlides(t); !isInCurrentWindow {
+
+		// if we slide by 1 window, init new curr and copy curr to prev
+		if nSlides == 1 {
+			w.prev.CopyFrom(w.curr)
+			w.curr = newWindow(t)
+		} else if nSlides > 1 { // if greater than 1, set prev to nothing and init new curr
+			prevTime := t.Add(-w.interval)
+			w.prev = newWindow(prevTime)
+			w.curr = newWindow(t)
+		}
 	}
 }
